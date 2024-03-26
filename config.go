@@ -2,10 +2,7 @@ package main
 
 import (
 	"crypto/rand"
-	"encoding/json"
-	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"sync"
 	"time"
@@ -15,18 +12,31 @@ import (
 	"github.com/deepch/vdk/av"
 )
 
-//Config global
-var Config = loadConfig()
+// Config global
+var Config = ConfigST{
+	Server: ServerST{
+		HTTPPort:   ":8083",
+		ICEServers: []string{"stun:stun.l.google.com:19302"},
+	},
+	Streams: map[string]StreamST{
+		"test": {
+			OnDemand:     false,
+			DisableAudio: true,
+			URL:          "rtsp://192.168.109.166:8554/cam",
+			Cl:           make(map[string]viewer),
+		},
+	},
+}
 
-//ConfigST struct
+// ConfigST struct
 type ConfigST struct {
-	mutex   sync.RWMutex
-	Server  ServerST            `json:"server"`
-	Streams map[string]StreamST `json:"streams"`
+	mutex     sync.RWMutex
+	Server    ServerST            `json:"server"`
+	Streams   map[string]StreamST `json:"streams"`
 	LastError error
 }
 
-//ServerST struct
+// ServerST struct
 type ServerST struct {
 	HTTPPort      string   `json:"http_port"`
 	ICEServers    []string `json:"ice_servers"`
@@ -36,7 +46,7 @@ type ServerST struct {
 	WebRTCPortMax uint16   `json:"webrtc_port_max"`
 }
 
-//StreamST struct
+// StreamST struct
 type StreamST struct {
 	URL          string `json:"url"`
 	Status       bool   `json:"status"`
@@ -112,37 +122,6 @@ func (element *ConfigST) GetWebRTCPortMax() uint16 {
 	element.mutex.Lock()
 	defer element.mutex.Unlock()
 	return element.Server.WebRTCPortMax
-}
-
-func loadConfig() *ConfigST {
-	var tmp ConfigST
-	data, err := ioutil.ReadFile("config.json")
-	if err == nil {
-		err = json.Unmarshal(data, &tmp)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		for i, v := range tmp.Streams {
-			v.Cl = make(map[string]viewer)
-			tmp.Streams[i] = v
-		}
-	} else {
-		addr := flag.String("listen", "8083", "HTTP host:port")
-		udpMin := flag.Int("udp_min", 0, "WebRTC UDP port min")
-		udpMax := flag.Int("udp_max", 0, "WebRTC UDP port max")
-		iceServer := flag.String("ice_server", "", "ICE Server")
-		flag.Parse()
-
-		tmp.Server.HTTPPort = *addr
-		tmp.Server.WebRTCPortMin = uint16(*udpMin)
-		tmp.Server.WebRTCPortMax = uint16(*udpMax)
-		if len(*iceServer) > 0 {
-			tmp.Server.ICEServers = []string{*iceServer}
-		}
-
-		tmp.Streams = make(map[string]StreamST)
-	}
-	return &tmp
 }
 
 func (element *ConfigST) cast(uuid string, pck av.Packet) {
