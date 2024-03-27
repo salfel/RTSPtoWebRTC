@@ -14,18 +14,14 @@ var (
 	ErrorStreamExitNoViewer        = errors.New("Stream Exit On Demand No Viewer")
 )
 
-func serveStreams() {
-	for k, v := range Config.Streams {
-		if !v.OnDemand {
-			go RTSPWorkerLoop(k, v.URL, v.OnDemand, v.DisableAudio, v.Debug)
-		}
-	}
-}
-
 func ServeStream(name string, config StreamST) {
 	if !config.OnDemand {
 		go RTSPWorkerLoop(name, config.URL, config.OnDemand, config.DisableAudio, config.Debug)
 	}
+	if config.Cl == nil {
+		config.Cl = make(map[string]viewer)
+	}
+	Config.Streams[name] = config
 }
 
 func RTSPWorkerLoop(name, url string, OnDemand, DisableAudio, Debug bool) {
