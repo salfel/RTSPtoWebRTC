@@ -13,19 +13,10 @@ import (
 )
 
 // Config global
-var Config = ConfigST{
-	Server: ServerST{
-		HTTPPort:   ":8083",
-		ICEServers: []string{"stun:stun.l.google.com:19302"},
-	},
-	Streams: map[string]StreamST{
-		"test": {
-			OnDemand:     false,
-			DisableAudio: true,
-			URL:          "rtsp://192.168.109.166:8554/cam",
-			Cl:           make(map[string]viewer),
-		},
-	},
+var Config *ConfigST
+
+func SetConfig(c *ConfigST) {
+	Config = c
 }
 
 // ConfigST struct

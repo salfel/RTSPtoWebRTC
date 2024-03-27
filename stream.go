@@ -21,6 +21,13 @@ func serveStreams() {
 		}
 	}
 }
+
+func ServeStream(name string, config StreamST) {
+	if !config.OnDemand {
+		go RTSPWorkerLoop(name, config.URL, config.OnDemand, config.DisableAudio, config.Debug)
+	}
+}
+
 func RTSPWorkerLoop(name, url string, OnDemand, DisableAudio, Debug bool) {
 	defer Config.RunUnlock(name)
 	for {
