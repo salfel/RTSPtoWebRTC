@@ -17,6 +17,9 @@ var Config *ConfigST
 
 func SetConfig(c *ConfigST) {
 	Config = c
+	if Config.Streams == nil {
+		Config.Streams = make(map[string]StreamST)
+	}
 }
 
 // ConfigST struct
