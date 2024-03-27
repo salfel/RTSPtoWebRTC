@@ -1,6 +1,7 @@
 package rtsptowebrtc
 
 import (
+	"context"
 	"errors"
 	"log"
 	"time"
@@ -15,23 +16,34 @@ var (
 )
 
 func ServeStream(name string, config StreamST) {
+	ctx, cancel := context.WithCancel(context.Background())
 	if !config.OnDemand {
-		go RTSPWorkerLoop(name, config.URL, config.OnDemand, config.DisableAudio, config.Debug)
+		go RTSPWorkerLoop(name, ctx, config.URL, config.OnDemand, config.DisableAudio, config.Debug)
 	}
 	if config.Cl == nil {
 		config.Cl = make(map[string]viewer)
 	}
+	config.Cancel = cancel
 	Config.Streams[name] = config
 }
 
-func RTSPWorkerLoop(name, url string, OnDemand, DisableAudio, Debug bool) {
+func RemoveStream(name string) {
+	Config.Streams[name].Cancel()
+
+	delete(Config.Streams, name)
+}
+
+func RTSPWorkerLoop(name string, ctx context.Context, url string, OnDemand, DisableAudio, Debug bool) {
 	defer Config.RunUnlock(name)
 	for {
 		log.Println("Stream Try Connect", name)
-		err := RTSPWorker(name, url, OnDemand, DisableAudio, Debug)
+		err, done := RTSPWorker(name, ctx, url, OnDemand, DisableAudio, Debug)
 		if err != nil {
 			log.Println(err)
 			Config.LastError = err
+		}
+		if done {
+			break
 		}
 		if OnDemand && !Config.HasViewer(name) {
 			log.Println(ErrorStreamExitNoViewer)
@@ -40,13 +52,13 @@ func RTSPWorkerLoop(name, url string, OnDemand, DisableAudio, Debug bool) {
 		time.Sleep(1 * time.Second)
 	}
 }
-func RTSPWorker(name, url string, OnDemand, DisableAudio, Debug bool) error {
+func RTSPWorker(name string, ctx context.Context, url string, OnDemand, DisableAudio, Debug bool) (error, bool) {
 	keyTest := time.NewTimer(20 * time.Second)
 	clientTest := time.NewTimer(20 * time.Second)
 	//add next TimeOut
 	RTSPClient, err := rtspv2.Dial(rtspv2.RTSPClientOptions{URL: url, DisableAudio: DisableAudio, DialTimeout: 3 * time.Second, ReadWriteTimeout: 3 * time.Second, Debug: Debug})
 	if err != nil {
-		return err
+		return err, false
 	}
 	defer RTSPClient.Close()
 	if RTSPClient.CodecData != nil {
@@ -61,25 +73,27 @@ func RTSPWorker(name, url string, OnDemand, DisableAudio, Debug bool) error {
 		case <-clientTest.C:
 			if OnDemand {
 				if !Config.HasViewer(name) {
-					return ErrorStreamExitNoViewer
+					return ErrorStreamExitNoViewer, false
 				} else {
 					clientTest.Reset(20 * time.Second)
 				}
 			}
 		case <-keyTest.C:
-			return ErrorStreamExitNoVideoOnStream
+			return ErrorStreamExitNoVideoOnStream, false
 		case signals := <-RTSPClient.Signals:
 			switch signals {
 			case rtspv2.SignalCodecUpdate:
 				Config.coAd(name, RTSPClient.CodecData)
 			case rtspv2.SignalStreamRTPStop:
-				return ErrorStreamExitRtspDisconnect
+				return ErrorStreamExitRtspDisconnect, false
 			}
 		case packetAV := <-RTSPClient.OutgoingPacketQueue:
 			if AudioOnly || packetAV.IsKeyFrame {
 				keyTest.Reset(20 * time.Second)
 			}
 			Config.cast(name, *packetAV)
+		case <-ctx.Done():
+			return nil, true
 		}
 	}
 }

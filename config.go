@@ -1,6 +1,7 @@
 package rtsptowebrtc
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"log"
@@ -50,6 +51,7 @@ type StreamST struct {
 	RunLock      bool   `json:"-"`
 	Codecs       []av.CodecData
 	Cl           map[string]viewer
+	Cancel       context.CancelFunc
 }
 
 type viewer struct {
@@ -63,7 +65,13 @@ func (element *ConfigST) RunIFNotRun(uuid string) {
 		if tmp.OnDemand && !tmp.RunLock {
 			tmp.RunLock = true
 			element.Streams[uuid] = tmp
-			go RTSPWorkerLoop(uuid, tmp.URL, tmp.OnDemand, tmp.DisableAudio, tmp.Debug)
+			stream, ok := element.Streams[uuid]
+			if ok {
+				ctx, cancel := context.WithCancel(context.Background())
+				stream.Cancel = cancel
+				element.Streams[uuid] = stream
+				go RTSPWorkerLoop(uuid, ctx, tmp.URL, tmp.OnDemand, tmp.DisableAudio, tmp.Debug)
+			}
 		}
 	}
 }
