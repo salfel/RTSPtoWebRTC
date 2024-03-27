@@ -1,4 +1,4 @@
-package main
+package rtsptowebrtc
 
 import (
 	"crypto/rand"

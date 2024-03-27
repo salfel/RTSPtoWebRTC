@@ -1,4 +1,4 @@
-module github.com/deepch/RTSPtoWebRTC
+module github.com/salfel/RTSPtoWebRTC
 
 go 1.18
 
