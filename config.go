@@ -180,7 +180,7 @@ func (element *ConfigST) clAd(suuid string) (string, chan av.Packet) {
 	return cuuid, ch
 }
 
-func (element *ConfigST) list() (string, []string) {
+func (element *ConfigST) List() (string, []string) {
 	element.mutex.Lock()
 	defer element.mutex.Unlock()
 	var res []string
