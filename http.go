@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
-	"sort"
 	"time"
 
 	"github.com/deepch/vdk/av"
@@ -18,53 +16,10 @@ type JCodec struct {
 	Type string
 }
 
-func serveHTTP() {
-	gin.SetMode(gin.ReleaseMode)
-
-	router := gin.Default()
-	router.Use(CORSMiddleware())
-
-	if _, err := os.Stat("./web"); !os.IsNotExist(err) {
-		router.LoadHTMLGlob("web/templates/*")
-		router.GET("/", HTTPAPIServerIndex)
-		router.GET("/stream/player/:uuid", HTTPAPIServerStreamPlayer)
-	}
+func ServeGin(router *gin.Engine) {
 	router.POST("/stream/receiver/:uuid", HTTPAPIServerStreamWebRTC)
 	router.GET("/stream/codec/:uuid", HTTPAPIServerStreamCodec)
 	router.POST("/stream", HTTPAPIServerStreamWebRTC2)
-
-	router.StaticFS("/static", http.Dir("web/static"))
-	err := router.Run(Config.Server.HTTPPort)
-	if err != nil {
-		log.Fatalln("Start HTTP Server error", err)
-	}
-}
-
-// HTTPAPIServerIndex  index
-func HTTPAPIServerIndex(c *gin.Context) {
-	_, all := Config.list()
-	if len(all) > 0 {
-		c.Header("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Redirect(http.StatusMovedPermanently, "stream/player/"+all[0])
-	} else {
-		c.HTML(http.StatusOK, "index.tmpl", gin.H{
-			"port":    Config.Server.HTTPPort,
-			"version": time.Now().String(),
-		})
-	}
-}
-
-// HTTPAPIServerStreamPlayer stream player
-func HTTPAPIServerStreamPlayer(c *gin.Context) {
-	_, all := Config.list()
-	sort.Strings(all)
-	c.HTML(http.StatusOK, "player.tmpl", gin.H{
-		"port":     Config.Server.HTTPPort,
-		"suuid":    c.Param("uuid"),
-		"suuidMap": all,
-		"version":  time.Now().String(),
-	})
 }
 
 // HTTPAPIServerStreamCodec stream codec
