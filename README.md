@@ -65,4 +65,4 @@ You can also change the querySelector for the videoElement for more fine-grained
 
 ## Example
 
-A example application on how to integrate the RTSPtoWebRTC package can be found in this [repository](github.com/salfel/camera) under the server dir
+A example application on how to integrate the RTSPtoWebRTC package can be found in this [repository](https://github.com/salfel/camera) under the server dir
